@@ -33,19 +33,21 @@
 		$(document).ready(function() {
 			$("#updatePtrRecord").click( function()
 				{
-					$('#ipUpdateMessage').removeClass();
-					$('#ipUpdateMessage').addClass('alert alert-info textcenter').html('<p>Submitting PTR update...</p>');
+					var messageBox = $('#ipUpdateMessage');
+					messageBox.removeClass();
 
 					var ipAddress = $(this).closest("tr").find(".ipAddress").text();
 					var ipPtr = $(this).closest("tr").find(".ipAddressPtr").val();
+					if (typeof ipPtr == 'undefined' || ipPtr == '') {
+						messageBox.addClass('alert alert-warning textcenter').html('<p>Missing PTR value for ' + ipAddress + '</p>');
+						return false;
+					}
+
+					messageBox.addClass('alert alert-info textcenter').html('<p>Submitting PTR update...</p>');
+
 					var apiKey = "{/literal}{$encodedKey}{literal}";
 					var serverId = {/literal}{$serverId}{literal};
 					var url = "{/literal}{$systemurl}{literal}";
-
-					if (typeof ipPtr == 'undefined' || ipPtr == '') {
-						alert('Missing PTR value for ' + ipAddress);
-						return false;
-					}
 
 					$.ajax({
 						type: "POST",
@@ -53,11 +55,11 @@
 						data: {ipAddress:ipAddress, ipPtr:ipPtr, apiKey:apiKey, serverId:serverId},
 						dataType: "json"
 					}).done(function( response ) {
-						$('#ipUpdateMessage').removeClass();
+						messageBox.removeClass();
 						if (response.success) {
-							$('#ipUpdateMessage').addClass('alert alert-success textcenter').html('<p>Successfully updated PTR record of ' + ipAddress + '</p>');
+							messageBox.addClass('alert alert-success textcenter').html('<p>Successfully updated PTR record of ' + ipAddress + '</p>');
 						} else {
-							$('#ipUpdateMessage').addClass('alert alert-warning textcenter').html('<p>Error: Failed to update the PTR record of '+ ipAddress +'</p>');
+							messageBox.addClass('alert alert-error textcenter').html('<p>Error: Failed to update the PTR record of '+ ipAddress +'</p>');
 						}
 					});
 				}

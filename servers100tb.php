@@ -1,6 +1,6 @@
 <?php
 
-require_once("tera-api.php");
+require_once("assets/classes/tera-api.php");
 
 function servers100tb_ConfigOptions()
 {
@@ -18,12 +18,12 @@ function servers100tb_ConfigOptions()
 	}
 
 	$configarray = array(
-		"API Key" => array( "Type" => "text", "Size" => "80")
+		"API Key" => array( "Type" => "text", "Size" => "80", "Description" => "assign tera account with key" ),
+		'Allow PTR' => array( "Type" => "yesno", "Description" => "Allow clients to set their own PTR records for IP addresses" ),
 	);
 
 	return $configarray;
 }
-
 
 function servers100tb_SuspendAccount($params)
 {
@@ -140,8 +140,16 @@ function servers100tb_reboot($params)
 
 function servers100tb_ips($params)
 {
+	$encryptionMethod = "AES-256-CBC";
+	$secretHash = "25c6c7ff35b9979b151f2136cd13b0ff";
+
 	$ips = null;
 	$error = null;
+
+	$serverId = null;
+	$apiKey = null;
+
+	$ptrAllowed = $params["configoption2"];
 
 	$result = select_query("mod_100tb","",array("serviceid"=>$params['serviceid']));
 
@@ -180,9 +188,12 @@ function servers100tb_ips($params)
 
 	if (!$error) {
 		return array(
-			'templatefile' => 'ips',
+			'templatefile' => 'assets/template/ips',
 			'vars' => array(
-				'ips' => $ips
+				'ips' => $ips,
+				'ptrAllowed' => $ptrAllowed,
+				'serverId' => $serverId,
+				'encodedKey' => openssl_encrypt($apiKey, $encryptionMethod, $secretHash)
 			),
 		);
 	} else {
@@ -192,12 +203,8 @@ function servers100tb_ips($params)
 
 function servers100tb_ClientArea($params) {
 
-	$code = '<form action="http://'.'testurl'.'/controlpanel" method="post" target="_blank">
-<input type="hidden" name="user" value="'.$params["username"].'" />
-<input type="hidden" name="pass" value="'.$params["password"].'" />
-<input type="submit" value="Login to Control Panel" />
-<input type="button" value="Login to Webmail" onClick="window.open(\'http://'.'testurl'.'/webmail\')" />
-</form>';
+	$code = '<blockquote>TODO: Get Server Status / power status</blockquote>';
+
 	return $code;
 }
 
@@ -227,7 +234,20 @@ function servers100tb_bandwidth($params)
 		try {
 			$response = $teraApi->get('/servers.json/{server}/bandwidth',$params);
 			if (isset($response['data']) && !empty($response['data'])) {
+
 				$bandwidth = $response['data'];
+
+				function date_compare($a, $b) {
+					$t1 = strtotime($a['date']);
+					$t2 = strtotime($b['date']);
+					return $t2 - $t1;
+				}
+
+				usort($bandwidth, 'date_compare');
+
+				foreach ($bandwidth as $k => $v) {
+					$bandwidth[$k]['date'] = date('l jS F Y', strtotime( $v['date']));
+				}
 			}
 		} catch (Exception $e) {
 			$error = $e->getMessage();
@@ -236,7 +256,7 @@ function servers100tb_bandwidth($params)
 
 	if (!$error && $bandwidth) {
 		return array(
-			'templatefile' => 'bandwidth',
+			'templatefile' => 'assets/template/bandwidth',
 			'vars' => array(
 				'bandwidth' => $bandwidth
 			),
@@ -310,7 +330,6 @@ function servers100tb_AdminServicesTabFields($params)
 
 function servers100tb_AdminServicesTabFieldsSave($params)
 {
-
 	$serviceId = $params['serviceid'];
 	$serverId = $_POST['modulefields'][0];
 	$alternateApiKey = $_POST['modulefields'][1];
@@ -336,16 +355,19 @@ function servers100tb_AdminServicesTabFieldsSave($params)
 	}
 
 	if ($response) {
+
 		$domain = (isset($response['fqdn']))? $response['fqdn']:'';
 		$userName = (isset($response['info']['login_details']['username']))? $response['info']['login_details']['username']:'';
 		$dedicatedIp = (isset($response['public_ip']))? $response['public_ip']:'';
 		$assignedips = (isset($response['ips']))? json_encode($response['ips'], JSON_PRETTY_PRINT):'';
+		$bandwidthLimit = (isset($response['info']['bandwidth']['limit']))? $response['info']['bandwidth']['limit']:0;
 
 		update_query("tblhosting", array(
 			"domain" => $domain,
 			"username" => $userName,
 			"dedicatedip" => $dedicatedIp,
 			"assignedips" => $assignedips,
+			"bwlimit" => $bandwidthLimit
 		), array("id" => $serviceId));
 	}
 }

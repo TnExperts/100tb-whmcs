@@ -201,12 +201,14 @@ function servers100tb_ips($params)
 	}
 }
 
+/*
 function servers100tb_ClientArea($params) {
 
 	$code = '<blockquote>TODO: Get Server Status / power status</blockquote>';
 
 	return $code;
 }
+*/
 
 function servers100tb_bandwidth($params)
 {

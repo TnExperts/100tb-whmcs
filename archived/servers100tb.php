@@ -2,6 +2,12 @@
 
 require_once("assets/classes/tera-api.php");
 
+//TODO: Build for SSD VPS first then add dedicated server support.
+//TODO: oconfig options for ssd
+//TODO: on ssd create make server
+//http://docs.whmcs.com/Provisioning_Module_Developer_Docs
+
+/*
 function servers100tb_ConfigOptions()
 {
 	if(!mysql_num_rows(mysql_query("SHOW TABLES LIKE 'mod_100tb'"))) {
@@ -201,15 +207,6 @@ function servers100tb_ips($params)
 	}
 }
 
-/*
-function servers100tb_ClientArea($params) {
-
-	$code = '<blockquote>TODO: Get Server Status / power status</blockquote>';
-
-	return $code;
-}
-*/
-
 function servers100tb_bandwidth($params)
 {
 	$bandwidth = null;
@@ -373,3 +370,5 @@ function servers100tb_AdminServicesTabFieldsSave($params)
 		), array("id" => $serviceId));
 	}
 }
+
+//*/

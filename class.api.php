@@ -3,7 +3,7 @@
  * Implementation class for Tera's REST API Server
  * @author Robbie Hernandez <support@100tb.com>
  * @date 2015-09-03
- * @version 0.10.2
+ * @version 0.2.1
  *
  * Example usages for this class:
  * ---------
@@ -17,17 +17,16 @@
  * 500 Internal Server Error: Something is broke. Please contact an administrator.
  *
  */
-class TeraAPI {
+class API {
 
 	protected $_apiUserAgent = "TERA_API_1_JSON/PHP";
-	//protected $_apiUrl = 'https://cp.100tb.com/rest-api/';
-	protected $_apiUrl = 'http://localhost/tera/rest-api/';
+	protected $_apiUrl = 'https://cp.100tb.com/rest-api/';
 
 	private $_apiKey = '';
 	private $_params = array();
 
-	public function __construct($key) {
-		$this->_apiKey = $key;
+	public function __construct($apiKey) {
+		$this->_apiKey = $apiKey;
 	}
 
 	private function execute($route, $request) {

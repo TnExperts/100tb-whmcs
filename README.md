@@ -1,2 +1,2 @@
 # 100tb-whmcs-module
-100TB WHMCS Server Provisioning Module. Supports WHMCS 6.02 or greater
+100TB WHMCS SSD VPS Provisioning Module. Built on WHMCS v6.02

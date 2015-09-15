@@ -1,5 +1,9 @@
 <?php
 
+//TODO: add power status on product overview page.
+//TODO: add reset password client option.
+//TODO: on admin password change update in tera.
+
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
@@ -165,6 +169,19 @@ function getTemplateId($locationId, $index)
 
 function ssd100tb_ConfigOptions()
 {
+    if(!mysql_num_rows(mysql_query("SHOW TABLES LIKE 'mod_100tb'"))) {
+        $query = '
+			CREATE TABLE IF NOT EXISTS `mod_100tb_vps` (
+				 `serviceid` int(11) unsigned NOT NULL,
+				 `serverid` int(11) unsigned NOT NULL,
+				 `alternateApiKey` VARCHAR( 255 ) DEFAULT NULL,
+				 PRIMARY KEY (`serviceid`),
+				 UNIQUE KEY `serverid` (`serverid`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8';
+
+        mysql_query($query);
+    }
+
     $configArray = array(
         'Plan' => array(
             'Type' => 'dropdown',
@@ -244,7 +261,15 @@ function ssd100tb_CreateAccount(array $params)
             'billHourly' => false
         ));
 
-        //TODO: save server ID in server column.
+        if (isset($response['server'])) {
+            update_query("tblhosting", array(
+                "server" => (int) $response['server'],
+                "username" => ($params['configoption5'] == 6 || $params['configoption5'] == 7)?'administrator':'root',
+                "dedicatedip" => $response['ip']
+            ), array("id" => $params['serviceid']));
+        } else {
+            throw new Exception($response);
+        }
     } catch (Exception $e) {
         // Record the error in WHMCS's module log.
         logModuleCall(
@@ -255,10 +280,191 @@ function ssd100tb_CreateAccount(array $params)
             $e->getMessage()
         );
 
-        return false;
+        return $e->getMessage();
     }
 
     return 'success';
 }
 
-//TODO: Delete Server function. add hook to delete server on cancellation.
+function ssd100tb_SuspendAccount(array $params)
+{
+    try {
+        $API = new API($params['configoption4']);
+
+        if ($params['status'] === 'Suspended') {
+            throw new Exception($params['domain'] . ' is already suspended.');
+        } else if ($params['status'] === 'Active') {
+            $response = $API->post("/vps.json/servers/{$params['serverid']}/shutdown");
+        }
+    } catch (Exception $e) {
+        // Record the error in WHMCS's module log.
+        logModuleCall(
+            'ssd100tb',
+            __FUNCTION__,
+            $params,
+            //$e->getTraceAsString()
+            $e->getMessage()
+        );
+
+        return $e->getMessage();
+    }
+
+    return 'success';
+}
+
+function ssd100tb_UnsuspendAccount(array $params)
+{
+    try {
+        $API = new API($params['configoption4']);
+
+        if ($params['status'] === 'Suspended') {
+            $response = $API->post("/vps.json/servers/{$params['serverid']}/startup");
+        } else if ($params['status'] === 'Active') {
+            throw new Exception($params['domain'] . ' is already active.');
+        }
+    } catch (Exception $e) {
+        // Record the error in WHMCS's module log.
+        logModuleCall(
+            'ssd100tb',
+            __FUNCTION__,
+            $params,
+            //$e->getTraceAsString()
+            $e->getMessage()
+        );
+
+        return $e->getMessage();
+    }
+
+    return 'success';
+}
+
+function ssd100tb_TerminateAccount (array $params)
+{
+    try {
+        $API = new API($params['configoption4']);
+
+        $response = $API->delete("/vps.json/servers/{$params['serverid']}");
+
+        if ($response != true) {
+            return 'Failed to delete SSD VPS server.';
+        } else {
+            update_query("tblhosting", array(
+                "server" => 0,
+                "dedicatedip" => ''
+            ), array("id" => $params['serviceid']));
+        }
+    } catch (Exception $e) {
+        // Record the error in WHMCS's module log.
+        logModuleCall(
+            'ssd100tb',
+            __FUNCTION__,
+            $params,
+            //$e->getTraceAsString()
+            $e->getMessage()
+        );
+
+        return $e->getMessage();
+    }
+
+    return 'success';
+}
+
+function ssd100tb_reboot(array $params)
+{
+    try {
+        $API = new API($params['configoption4']);
+
+        if ($params['status'] === 'Suspended') {
+            throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
+        } else if ($params['status'] === 'Active') {
+            $response = $API->post("/vps.json/servers/{$params['serverid']}/reboot");
+        }
+    } catch (Exception $e) {
+        // Record the error in WHMCS's module log.
+        logModuleCall(
+            'ssd100tb',
+            __FUNCTION__,
+            $params,
+            //$e->getTraceAsString()
+            $e->getMessage()
+        );
+
+        return $e->getMessage();
+    }
+
+    return 'success';
+}
+
+function ssd100tb_shutdown(array $params)
+{
+    try {
+        $API = new API($params['configoption4']);
+
+        if ($params['status'] === 'Suspended') {
+            throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
+        } else if ($params['status'] === 'Active') {
+            $response = $API->post("/vps.json/servers/{$params['serverid']}/shutdown");
+        }
+    } catch (Exception $e) {
+        // Record the error in WHMCS's module log.
+        logModuleCall(
+            'ssd100tb',
+            __FUNCTION__,
+            $params,
+            //$e->getTraceAsString()
+            $e->getMessage()
+        );
+
+        return $e->getMessage();
+    }
+
+    return 'success';
+}
+
+function ssd100tb_startup(array $params)
+{
+    try {
+        $API = new API($params['configoption4']);
+
+        if ($params['status'] === 'Suspended') {
+            throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
+        } else if ($params['status'] === 'Active') {
+            $response = $API->post("/vps.json/servers/{$params['serverid']}/startup");
+        }
+    } catch (Exception $e) {
+        // Record the error in WHMCS's module log.
+        logModuleCall(
+            'ssd100tb',
+            __FUNCTION__,
+            $params,
+            //$e->getTraceAsString()
+            $e->getMessage()
+        );
+
+        return $e->getMessage();
+    }
+
+    return 'success';
+}
+
+function ssd100tb_AdminCustomButtonArray()
+{
+    $buttonarray = array(
+        "Reboot VPS" => "reboot",
+        "Power On VPS" => "startup",
+        "Power Off VPS" => "shutdown",
+    );
+
+    return $buttonarray;
+}
+
+function ssd100tb_ClientAreaCustomButtonArray()
+{
+    $buttonarray = array(
+        "Reboot Server" => "reboot",
+        "Power On VPS" => "startup",
+        "Power Off VPS" => "shutdown",
+    );
+
+    return $buttonarray;
+}

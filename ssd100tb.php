@@ -1,8 +1,14 @@
 <?php
 
-//TODO: add power status on product overview page.
 //TODO: add reset password client option.
-//TODO: on admin password change update in tera.
+
+/**
+ * $params['configoption1'] = planId (int)
+ * $params['configoption2'] = backups (bool)
+ * $params['configoption3'] = locationId (int)
+ * $params['configoption4'] = api_key (str)
+ * $params['configoption5'] = Template (int)
+ **/
 
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
@@ -169,19 +175,6 @@ function getTemplateId($locationId, $index)
 
 function ssd100tb_ConfigOptions()
 {
-    if(!mysql_num_rows(mysql_query("SHOW TABLES LIKE 'mod_100tb'"))) {
-        $query = '
-			CREATE TABLE IF NOT EXISTS `mod_100tb_vps` (
-				 `serviceid` int(11) unsigned NOT NULL,
-				 `serverid` int(11) unsigned NOT NULL,
-				 `alternateApiKey` VARCHAR( 255 ) DEFAULT NULL,
-				 PRIMARY KEY (`serviceid`),
-				 UNIQUE KEY `serverid` (`serverid`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8';
-
-        mysql_query($query);
-    }
-
     $configArray = array(
         'Plan' => array(
             'Type' => 'dropdown',
@@ -236,13 +229,6 @@ function ssd100tb_ConfigOptions()
     return $configArray;
 }
 
-/**
- * $params['configoption1'] = planId (int)
- * $params['configoption2'] = backups (bool)
- * $params['configoption3'] = locationId (int)
- * $params['configoption4'] = api_key (str)
- * $params['configoption5'] = Template (int)
-**/
 function ssd100tb_CreateAccount(array $params)
 {
     $templateId = getTemplateId($params['configoption3'], $params['configoption5']);
@@ -263,10 +249,30 @@ function ssd100tb_CreateAccount(array $params)
 
         if (isset($response['server'])) {
             update_query("tblhosting", array(
-                "server" => (int) $response['server'],
                 "username" => ($params['configoption5'] == 6 || $params['configoption5'] == 7)?'administrator':'root',
                 "dedicatedip" => $response['ip']
             ), array("id" => $params['serviceid']));
+
+            $customid = insert_query("tblcustomfields",array(
+                "type" => 'product',
+                "relid" => $params['packageid'],
+                "fieldname" => 'vpsid',
+                "fieldtype" => 'text',
+                "description" => 'ID of the SSD VPS server in https://console.100tb.com/#/apps/vps',
+                "fieldoptions" => '',
+                "regexpr" => '',
+                "adminonly" => 'on',
+                "required" => 'on',
+                "showorder" => '',
+                "showinvoice" => 'on',
+                "sortorder" => '0'
+            ));
+
+            $customvalue = insert_query("tblcustomfieldsvalue",array(
+                "fieldid" => $customid,
+                "relid" => $params['serviceid'],
+                "value" => $response['server']
+            ));
         } else {
             throw new Exception($response);
         }
@@ -294,7 +300,7 @@ function ssd100tb_SuspendAccount(array $params)
         if ($params['status'] === 'Suspended') {
             throw new Exception($params['domain'] . ' is already suspended.');
         } else if ($params['status'] === 'Active') {
-            $response = $API->post("/vps.json/servers/{$params['serverid']}/shutdown");
+            $response = $API->post("/vps.json/servers/{$params['customfields']['vpsid']}/shutdown");
         }
     } catch (Exception $e) {
         // Record the error in WHMCS's module log.
@@ -318,7 +324,7 @@ function ssd100tb_UnsuspendAccount(array $params)
         $API = new API($params['configoption4']);
 
         if ($params['status'] === 'Suspended') {
-            $response = $API->post("/vps.json/servers/{$params['serverid']}/startup");
+            $response = $API->post("/vps.json/servers/{$params['customfields']['vpsid']}/startup");
         } else if ($params['status'] === 'Active') {
             throw new Exception($params['domain'] . ' is already active.');
         }
@@ -343,7 +349,7 @@ function ssd100tb_TerminateAccount (array $params)
     try {
         $API = new API($params['configoption4']);
 
-        $response = $API->delete("/vps.json/servers/{$params['serverid']}");
+        $response = $API->delete("/vps.json/servers/{$params['customfields']['vpsid']}");
 
         if ($response != true) {
             return 'Failed to delete SSD VPS server.';
@@ -377,7 +383,7 @@ function ssd100tb_reboot(array $params)
         if ($params['status'] === 'Suspended') {
             throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
         } else if ($params['status'] === 'Active') {
-            $response = $API->post("/vps.json/servers/{$params['serverid']}/reboot");
+            $response = $API->post("/vps.json/servers/{$params['customfields']['vpsid']}/reboot");
         }
     } catch (Exception $e) {
         // Record the error in WHMCS's module log.
@@ -403,7 +409,7 @@ function ssd100tb_shutdown(array $params)
         if ($params['status'] === 'Suspended') {
             throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
         } else if ($params['status'] === 'Active') {
-            $response = $API->post("/vps.json/servers/{$params['serverid']}/shutdown");
+            $response = $API->post("/vps.json/servers/{$params['customfields']['vpsid']}/shutdown");
         }
     } catch (Exception $e) {
         // Record the error in WHMCS's module log.
@@ -429,7 +435,7 @@ function ssd100tb_startup(array $params)
         if ($params['status'] === 'Suspended') {
             throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
         } else if ($params['status'] === 'Active') {
-            $response = $API->post("/vps.json/servers/{$params['serverid']}/startup");
+            $response = $API->post("/vps.json/servers/{$params['customfields']['vpsid']}/startup");
         }
     } catch (Exception $e) {
         // Record the error in WHMCS's module log.
@@ -458,13 +464,68 @@ function ssd100tb_AdminCustomButtonArray()
     return $buttonarray;
 }
 
-function ssd100tb_ClientAreaCustomButtonArray()
+function ssd100tb_AdminServicesTabFields($params)
 {
-    $buttonarray = array(
-        "Reboot Server" => "reboot",
-        "Power On VPS" => "startup",
-        "Power Off VPS" => "shutdown",
-    );
+    $fieldsarray = array();
+
+    try {
+        $API = new API($params['configoption4']);
+        $response = $API->get("/vps.json/servers/{$params['customfields']['vpsid']}/status");
+
+        if (isset($response['status'])) {
+            $fieldsarray['Power Status'] = $response['status_message'];
+        }
+    } catch (Exception $e) {
+        // Record the error in WHMCS's module log.
+        logModuleCall(
+            'ssd100tb',
+            __FUNCTION__,
+            $params,
+            //$e->getTraceAsString()
+            $e->getMessage()
+        );
+    }
+
+    return $fieldsarray;
+}
+
+function ssd100tb_ClientAreaCustomButtonArray($params)
+{
+    $buttonarray = array();
+
+    try {
+        $API = new API($params['configoption4']);
+        $response = $API->get("/vps.json/servers/{$params['customfields']['vpsid']}/status");
+
+        if (isset($response['status'])) {
+            switch($response['status']) {
+                case 0:
+                    //"Not Yet Built"
+                    break;
+                case 1:
+                    //"Powered Off"
+                    $buttonarray["Power On VPS"] = 'startup';
+                    break;
+                case 2:
+                    //"Powered On"
+                    $buttonarray["Reboot Server"] = 'reboot';
+                    $buttonarray["Power Off VPS"] = 'shutdown';
+                    break;
+                default:
+                    //"Status Unknown"
+                    break;
+            }
+        }
+    } catch (Exception $e) {
+        // Record the error in WHMCS's module log.
+        logModuleCall(
+            'ssd100tb',
+            __FUNCTION__,
+            $params,
+            //$e->getTraceAsString()
+            $e->getMessage()
+        );
+    }
 
     return $buttonarray;
 }

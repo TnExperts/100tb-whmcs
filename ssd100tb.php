@@ -253,26 +253,40 @@ function ssd100tb_CreateAccount(array $params)
                 "dedicatedip" => $response['ip']
             ), array("id" => $params['serviceid']));
 
-            $customid = insert_query("tblcustomfields",array(
-                "type" => 'product',
-                "relid" => $params['packageid'],
-                "fieldname" => 'vpsid',
-                "fieldtype" => 'text',
-                "description" => 'ID of the SSD VPS server in https://console.100tb.com/#/apps/vps',
-                "fieldoptions" => '',
-                "regexpr" => '',
-                "adminonly" => 'on',
-                "required" => 'on',
-                "showorder" => '',
-                "showinvoice" => 'on',
-                "sortorder" => '0'
+            $result = select_query("tblcustomfields","id",array(
+                "relid" => $params['packageid']
             ));
 
-            $customvalue = insert_query("tblcustomfieldsvalue",array(
-                "fieldid" => $customid,
-                "relid" => $params['serviceid'],
-                "value" => $response['server']
-            ));
+            if ((!$result || mysql_num_rows($result) == '0')) {
+                $customid = insert_query("tblcustomfields",array(
+                    "type" => 'product',
+                    "relid" => $params['packageid'],
+                    "fieldname" => 'vpsid',
+                    "fieldtype" => 'text',
+                    "description" => 'ID of the SSD VPS server in https://console.100tb.com/#/apps/vps',
+                    "fieldoptions" => '',
+                    "regexpr" => '',
+                    "adminonly" => 'on',
+                    "required" => 'on',
+                    "showorder" => '',
+                    "showinvoice" => 'on',
+                    "sortorder" => '0'
+                ));
+            } else {
+                $customid = mysql_fetch_array($result)['id'];
+            }
+
+            $result = full_query("SELECT * FROM `tblcustomfieldsvalues` WHERE `fieldid` = {$customid} AND `relid` = {$params['serviceid']}");
+
+            if ((!$result || mysql_num_rows($result) == '0')) {
+                $customvalue = insert_query("tblcustomfieldsvalues",array(
+                    "fieldid" => $customid,
+                    "relid" => $params['serviceid'],
+                    "value" => $response['server']
+                ));
+            } else {
+                full_query("UPDATE `tblcustomfieldsvalues` set `value` = {$response['server']} WHERE `fieldid` = {$customid} AND `relid` = {$params['serviceid']}");
+            }
         } else {
             throw new Exception($response);
         }
@@ -354,7 +368,7 @@ function ssd100tb_TerminateAccount (array $params)
         if ($response != true) {
             return 'Failed to delete SSD VPS server.';
         } else {
-            update_query("tblhosting", array(
+             update_query("tblhosting", array(
                 "server" => 0,
                 "dedicatedip" => ''
             ), array("id" => $params['serviceid']));
@@ -469,12 +483,16 @@ function ssd100tb_AdminServicesTabFields($params)
     $fieldsarray = array();
 
     try {
-        $API = new API($params['configoption4']);
-        $response = $API->get("/vps.json/servers/{$params['customfields']['vpsid']}/status");
+        if (isset($params['customfields']['vpsid']) && (int)$params['customfields']['vpsid'] > 0 && $params['status'] === 'Active') {
 
-        if (isset($response['status'])) {
-            $fieldsarray['Power Status'] = $response['status_message'];
+            $API = new API($params['configoption4']);
+            $response = $API->get("/vps.json/servers/{$params['customfields']['vpsid']}/status");
+
+            if (isset($response['status'])) {
+                $fieldsarray['Power Status'] = $response['status_message'];
+            }
         }
+
     } catch (Exception $e) {
         // Record the error in WHMCS's module log.
         logModuleCall(

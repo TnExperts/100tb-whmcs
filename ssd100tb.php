@@ -1,7 +1,5 @@
 <?php
 
-//TODO: add reset password client option.
-
 /**
  * $params['configoption1'] = planId (int)
  * $params['configoption2'] = backups (bool)

@@ -17,7 +17,7 @@
  * 500 Internal Server Error: Something is broke. Please contact an administrator.
  *
  */
-class API {
+class ssd100tbAPI {
 
 	protected $_apiUserAgent = "TERA_API_1_JSON/PHP";
 	protected $_apiUrl = 'https://cp.100tb.com/rest-api/';

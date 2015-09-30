@@ -232,7 +232,7 @@ function ssd100tb_CreateAccount(array $params)
     $templateId = getTemplateId($params['configoption3'], $params['configoption5']);
 
     try {
-        $API = new API($params['configoption4']);
+        $API = new ssd100tbAPI($params['configoption4']);
 
         $response = $API->post('vps.json',array(
             'planId' => (int) $params['configoption1'],
@@ -307,7 +307,7 @@ function ssd100tb_CreateAccount(array $params)
 function ssd100tb_SuspendAccount(array $params)
 {
     try {
-        $API = new API($params['configoption4']);
+        $API = new ssd100tbAPI($params['configoption4']);
 
         if ($params['status'] === 'Suspended') {
             throw new Exception($params['domain'] . ' is already suspended.');
@@ -333,7 +333,7 @@ function ssd100tb_SuspendAccount(array $params)
 function ssd100tb_UnsuspendAccount(array $params)
 {
     try {
-        $API = new API($params['configoption4']);
+        $API = new ssd100tbAPI($params['configoption4']);
 
         if ($params['status'] === 'Suspended') {
             $response = $API->post("/vps.json/servers/{$params['customfields']['vpsid']}/startup");
@@ -359,7 +359,7 @@ function ssd100tb_UnsuspendAccount(array $params)
 function ssd100tb_TerminateAccount (array $params)
 {
     try {
-        $API = new API($params['configoption4']);
+        $API = new ssd100tbAPI($params['configoption4']);
 
         $response = $API->delete("/vps.json/servers/{$params['customfields']['vpsid']}");
 
@@ -390,7 +390,7 @@ function ssd100tb_TerminateAccount (array $params)
 function ssd100tb_reboot(array $params)
 {
     try {
-        $API = new API($params['configoption4']);
+        $API = new ssd100tbAPI($params['configoption4']);
 
         if ($params['status'] === 'Suspended') {
             throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
@@ -416,7 +416,7 @@ function ssd100tb_reboot(array $params)
 function ssd100tb_shutdown(array $params)
 {
     try {
-        $API = new API($params['configoption4']);
+        $API = new ssd100tbAPI($params['configoption4']);
 
         if ($params['status'] === 'Suspended') {
             throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
@@ -442,7 +442,7 @@ function ssd100tb_shutdown(array $params)
 function ssd100tb_startup(array $params)
 {
     try {
-        $API = new API($params['configoption4']);
+        $API = new ssd100tbAPI($params['configoption4']);
 
         if ($params['status'] === 'Suspended') {
             throw new Exception($params['domain'] . ' is currently suspended and cannot perform power actions.');
@@ -483,7 +483,7 @@ function ssd100tb_AdminServicesTabFields($params)
     try {
         if (isset($params['customfields']['vpsid']) && (int)$params['customfields']['vpsid'] > 0 && $params['status'] === 'Active') {
 
-            $API = new API($params['configoption4']);
+            $API = new ssd100tbAPI($params['configoption4']);
             $response = $API->get("/vps.json/servers/{$params['customfields']['vpsid']}/status");
 
             if (isset($response['status'])) {
@@ -510,7 +510,7 @@ function ssd100tb_ClientAreaCustomButtonArray($params)
     $buttonarray = array();
 
     try {
-        $API = new API($params['configoption4']);
+        $API = new ssd100tbAPI($params['configoption4']);
         $response = $API->get("/vps.json/servers/{$params['customfields']['vpsid']}/status");
 
         if (isset($response['status'])) {
